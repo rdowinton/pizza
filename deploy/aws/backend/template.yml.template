@@ -1,0 +1,103 @@
+# This is the SAM template that represents the architecture of your serverless application
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-template-basics.html
+
+# The AWSTemplateFormatVersion identifies the capabilities of the template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/format-version-structure.html
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  pizza42
+
+# Transform section specifies one or more macros that AWS CloudFormation uses to process your template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html
+Transform:
+- AWS::Serverless-2016-10-31
+
+Parameters:
+
+  Auth0Domain:
+    Type: String
+    Description: Auth0 domain
+    Default: YOUR_DOMAIN
+
+  Issuer:
+    Type: String
+    Description: Token issuer
+    Default: YOUR_ISSUER
+
+  ApiAudience:
+    Type: String
+    Description: Pizza 42 API audience
+    Default: https://food.auth.yoga/api
+
+  DomainCertificateArn:
+    Type: String
+    Description: Domain certificate ARN
+    Default: YOUR_DOMAIN_CERTIFICATE_ARN
+
+  ClientId:
+    Type: String
+    Description: Management API client ID
+    Default: YOUR_CLIENT_ID
+
+  ClientSecret:
+    Type: String
+    Description: Management API client secret
+    Default: YOUR_CLIENT_SECRET
+
+# Resources declares the AWS resources that you want to include in the stack
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+Resources:
+
+  Pizza42Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        Authorizers:
+          Pizza42:
+            AuthorizationScopes:
+              - create:orders
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              audience:
+                - !Ref ApiAudience
+              issuer: !Ref Issuer
+        DefaultAuthorizer: Pizza42
+      CorsConfiguration:
+        AllowMethods:
+          - POST
+        AllowOrigins:
+          - YOUR_APP_ORIGIN
+        AllowCredentials: true
+      Domain:
+        DomainName: api.pizza.auth.yoga
+        CertificateArn: !Ref DomainCertificateArn
+      StageName: Prod
+
+  PlaceOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/placeOrder.placeOrderHandler
+      Runtime: nodejs14.x
+      MemorySize: 128
+      Timeout: 100
+      Description: Places an order on behalf of the user.
+      Environment:
+        Variables:
+          AUTH0_DOMAIN: !Ref Auth0Domain
+          CLIENT_ID: !Ref ClientId
+          CLIENT_SECRET: !Ref ClientSecret
+      Events:
+        HttpApi:
+          Type: HttpApi
+          Properties:
+            Auth:
+              AuthorizationScopes:
+                - create:orders
+            ApiId: Pizza42Api
+            Path: /orders
+            Method: POST
+
+Outputs:
+  WebEndpoint:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${Pizza42Api}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

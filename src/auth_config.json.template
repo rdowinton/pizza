@@ -1,0 +1,5 @@
+{
+  "domain": "",
+  "clientId": "",
+  "audience": "https://pizza.auth.yoga/api"
+}
