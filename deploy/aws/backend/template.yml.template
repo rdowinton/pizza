@@ -17,17 +17,7 @@ Parameters:
   Auth0Domain:
     Type: String
     Description: Auth0 domain
-    Default: YOUR_DOMAIN
-
-  Issuer:
-    Type: String
-    Description: Token issuer
-    Default: YOUR_ISSUER
-
-  ApiAudience:
-    Type: String
-    Description: Pizza 42 API audience
-    Default: https://food.auth.yoga/api
+    Default: YOUR_AUTH0_DOMAIN
 
   DomainCertificateArn:
     Type: String
@@ -49,34 +39,47 @@ Parameters:
 Resources:
 
   Pizza42Api:
-    Type: AWS::Serverless::HttpApi
+    Type: AWS::Serverless::Api
     Properties:
       Auth:
         Authorizers:
           Pizza42:
-            AuthorizationScopes:
-              - create:orders
-            IdentitySource: $request.header.Authorization
-            JwtConfiguration:
-              audience:
-                - !Ref ApiAudience
-              issuer: !Ref Issuer
+            FunctionArn: !GetAtt AuthorizerFunction.Arn
         DefaultAuthorizer: Pizza42
-      CorsConfiguration:
-        AllowMethods:
-          - POST
-        AllowOrigins:
-          - YOUR_APP_ORIGIN
+        AddDefaultAuthorizerToCorsPreflight: false
+      Cors:
+        AllowHeaders: "'*'"
+        AllowMethods: "'OPTIONS, POST'"
+        AllowOrigin: "'https://pizza.auth.yoga'"
         AllowCredentials: true
       Domain:
         DomainName: api.pizza.auth.yoga
         CertificateArn: !Ref DomainCertificateArn
+        SecurityPolicy: TLS_1_2
       StageName: Prod
+
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/authorizer.handler
+      Runtime: nodejs14.x
+      Description: JWT authorizer.
+
+  AuthorizerFunctionPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - Pizza42Api
+      - AuthorizerFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: AuthorizerFunction
+      Principal: apigateway.amazonaws.com
 
   PlaceOrderFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/placeOrder.placeOrderHandler
+      Handler: src/handlers/placeOrder.handler
       Runtime: nodejs14.x
       MemorySize: 128
       Timeout: 100
@@ -87,15 +90,25 @@ Resources:
           CLIENT_ID: !Ref ClientId
           CLIENT_SECRET: !Ref ClientSecret
       Events:
-        HttpApi:
-          Type: HttpApi
+        Api:
+          Type: Api
           Properties:
-            Auth:
-              AuthorizationScopes:
-                - create:orders
-            ApiId: Pizza42Api
+            RestApiId: !Ref Pizza42Api
             Path: /orders
             Method: POST
+
+  PlaceOrderCorsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/placeOrder.corsHandler
+      Runtime: nodejs14.x
+    Events:
+      Api:
+        Type: Api
+        Properties:
+          RestApiId: !Ref Pizza42Api
+          Path: /orders
+          Method: OPTIONS
 
 Outputs:
   WebEndpoint:

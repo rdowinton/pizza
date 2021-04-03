@@ -1,27 +1,41 @@
 const axios = require("axios").default;
-const jwt = require("jsonwebtoken");
 
-const jsonContentTypeHeader = { 'Content-Type': 'application/json' }
+const corsHeaders = {
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Allow-Origin': 'https://pizza.auth.yoga',
+  'Access-Control-Allow-Methods': 'OPTIONS, POST',
+  'Access-Control-Allow-Credentials': 'true',
+};
+const jsonContentTypeHeader = { 'Content-Type': 'application/json' };
+const commonHeaders = { ...corsHeaders, ...jsonContentTypeHeader };
 let cachedToken;
 
-exports.placeOrderHandler = async (event) => {
+exports.corsHandler = async (event) => ({ statusCode: 200, headers: corsHeaders, body: '' });
+
+exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     throw new Error(`postMethod only accepts POST method, you tried: ${event.httpMethod} method.`);
   }
 
   const { AUTH0_DOMAIN: domain, CLIENT_ID: clientId, CLIENT_SECRET: clientSecret } = process.env;
 
-  const token = event.authorizationToken;
-  const { sub: userId } = jwt.decode(token) || { sub: null }; // no need to verify as this should be done in authorizer
-  if(userId === null) {
+  const userId = event.requestContext.authorizer && event.requestContext.authorizer.principalId;
+  if(typeof userId !== 'string') {
     return {
       statusCode: 400,
-      headers: { ...jsonContentTypeHeader },
-      body: JSON.stringify({ error: 'Malformed or missing token' }),
+      headers: commonHeaders,
+      body: JSON.stringify({ error: 'Malformed request' }),
     }
   }
 
-  const newOrder = JSON.parse(event.body);
+  const newOrder = JSON.parse(event.body).order;
+  if(!Array.isArray(newOrder)) {
+    return {
+      statusCode: 400,
+      headers: commonHeaders,
+      body: JSON.stringify({ error: 'Malformed request' }),
+    }
+  }
 
   // Fetch new token if necessary
   if(!cachedToken || cachedToken.exp > Date.now()) {
@@ -45,8 +59,8 @@ exports.placeOrderHandler = async (event) => {
     if(!cachedToken) {
       return {
         statusCode: 500,
-        headers: { ...jsonContentTypeHeader },
-        body: JSON.stringify({ error: 'Internal server error' })
+        headers: commonHeaders,
+        body: JSON.stringify({ error: 'Internal server error: no token' })
       }
     }
   }
@@ -69,19 +83,19 @@ exports.placeOrderHandler = async (event) => {
     const patchUserOptions = {
       ...baseOptions,
       method: 'PATCH',
-      headers: { ...baseOptions.headers, ...jsonContentTypeHeader },
+      headers: { ...baseOptions.headers, ...commonHeaders },
       data: {
         user_metadata: metadata,
       }
     };
     return axios.request(patchUserOptions);
   }).then(() => {
-    return { statusCode: 201, headers: { ...jsonContentTypeHeader }, body: newOrder };
-  }).catch(() => {
+    return { statusCode: 201, headers: commonHeaders, body: JSON.stringify(newOrder) };
+  }).catch(err => {
     return {
       statusCode: 500,
-      headers: { ...jsonContentTypeHeader },
-      body: JSON.stringify({ error: 'Internal server error' })
+      headers: commonHeaders,
+      body: JSON.stringify({ error: 'Internal server error: ' + JSON.stringify(err) })
     };
-  })
+  });
 }

@@ -4,7 +4,7 @@ const Footer = () => (
   <footer className="bg-light p-3 text-center">
     <div className="logo" />
     <p>
-      2021 Pizza 42
+       &copy; 2021 - Pizza 42
     </p>
   </footer>
 );

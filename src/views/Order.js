@@ -1,32 +1,32 @@
-import React, {useState, useEffect} from "react";
+import React, {useState} from "react";
 import {useAuth0, withAuthenticationRequired} from "@auth0/auth0-react";
 import Loading from "../components/Loading";
 import {Alert, Button, Col, Container, Row, Table} from "reactstrap";
-import {getMenuItems, placeOrder} from "../api/menu";
+import {placeOrder} from "../api/menu";
 import loading from "../assets/loading.svg";
 
 import './Order.css';
 
 const renderPrice = price => '$' + price.toFixed(2);
-const MenuItem = ({ name, description, price, handleAddItem }) => (
+const MenuItem = ({ name, description, price, handleAddItem, canOrder }) => (
   <tr>
     <td>{name}</td>
     <td>{description}</td>
     <td>{renderPrice(price)}</td>
-    <td><Button color="primary" onClick={handleAddItem}>Add</Button></td>
+    <td><Button color="primary" onClick={handleAddItem} disabled={!canOrder}>Add</Button></td>
   </tr>
 );
 
-const Menu = ({ items, handleAddItem }) => (
+const Menu = ({ items, handleAddItem, canOrder }) => (
   <Table>
     <tbody>
-    {items.map((i) => <MenuItem key={i.name} handleAddItem={() => handleAddItem(i)} {...i}/>)}
+    {items.map((i) => <MenuItem key={i.name} handleAddItem={() => handleAddItem(i)} canOrder={canOrder} {...i}/>)}
     </tbody>
   </Table>
 );
 
 const calculateTotal = order => order.length > 0 && order.map(i => i.price).reduce((total, value) => total + value);
-const OrderSummary = ({ order, handleRemoveItem, handlePlaceOrder }) => (
+const OrderSummary = ({ order, handleRemoveItem, handlePlaceOrder, canOrder }) => (
   <div>
     <Table>
       <tbody>
@@ -46,49 +46,28 @@ const OrderSummary = ({ order, handleRemoveItem, handlePlaceOrder }) => (
       </tbody>
     </Table>
     <div className="text-center">
-      <Button color="primary" onClick={() => handlePlaceOrder(order)}>Place order</Button>
+      <Button color="primary" onClick={() => handlePlaceOrder(order)} canOrder={canOrder}>Place order</Button>
     </div>
   </div>
 );
 
+const menuItems = [
+  { name: 'Margherita', description: 'Tomato, cheese, basil', price: 9.99 },
+  { name: 'Pepperoni', description: 'Tomato, cheese, pepperoni', price: 11.99 },
+  { name: 'Quattro Formaggi', description: 'Tomato, cheese, cheddar, feta, blue cheese', price: 12.99 },
+  { name: 'Picante', description: 'Tomato, cheese, pepperoni, salami, jalapenos', price: 12.99 },
+  { name: 'Veggie', description: 'Tomato, cheese, onion, peppers, mushroom', price: 10.99 },
+]
+
 export const OrderComponent = () => {
   const { user, getAccessTokenSilently } = useAuth0();
 
-  const [menuItems, setMenuItems] = useState([
-    { name: 'margherita', description: 'margherita desc', price: 1.29 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-    { name: 'pepperoni', description: 'pepperoni desc', price: 1.39 },
-  ]);
   const [message, setMessage] = useState(null);
   const [placingOrder, setPlacingOrder] = useState(false);
 
-  useEffect(() => {
-    /*getMenuItems().then(response => {
-      setMenuItems(response);
-      setMessage(null);
-    }).catch(() => setMessage({ type: 'danger', message: 'Failed to load menu' }));*/
-  }, [])
-
   const [order, setOrder] = useState([]);
+
+  const allowedToOrder = !!user.email_verified;
 
   const handleAddItem = menuItem => setOrder([...order, menuItem]);
   const handleRemoveItem = index => setOrder(order.filter((_, i) => i !== index));
@@ -98,14 +77,14 @@ export const OrderComponent = () => {
     const token = await getAccessTokenSilently();
     placeOrder(order, token).then(response => {
       setOrder([]);
-      setMessage({ type: 'success'})
+      setMessage({ type: 'success', message: 'Order placed!' });
     }).catch(() => setMessage({ type: 'danger', message: 'Failed to place order' }))
       .finally(() => setPlacingOrder(false));
   };
 
   return (
     <Container className="mb-5">
-      {!user.email_verified && (
+      {!allowedToOrder && (
         <Row>
           <Alert color="warning">You need to verify your email address before you can order.</Alert>
         </Row>
@@ -119,7 +98,7 @@ export const OrderComponent = () => {
         <Col className="menu" md={8}>
           <h2>Menu</h2>
           <br/>
-          <Menu items={menuItems} handleAddItem={handleAddItem}/>
+          <Menu items={menuItems} handleAddItem={handleAddItem} canOrder={allowedToOrder}/>
         </Col>
         <Col className="your-order" md={4}>
           <h2>Your order</h2>
@@ -128,7 +107,12 @@ export const OrderComponent = () => {
             <span>Your order is empty.</span>
           )}
           {!placingOrder && Array.isArray(order) && order.length > 0 && (
-            <OrderSummary order={order} handleRemoveItem={handleRemoveItem} handlePlaceOrder={handlePlaceOrder}/>
+            <OrderSummary
+              order={order}
+              handleRemoveItem={handleRemoveItem}
+              handlePlaceOrder={handlePlaceOrder}
+              canOrder={allowedToOrder}
+            />
           )}
           {placingOrder && (
             <div className='placing-order'>

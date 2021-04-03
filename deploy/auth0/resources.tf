@@ -40,6 +40,7 @@ resource "auth0_rule" "assign_email_verified_role" {
   script = <<EOF
 function (user, context, callback) {
   const permissions = user.permissions || [];
+
   if(user.email_verified && !permissions.includes(p => p === 'create:orders')) {
     const ManagementClient = require('auth0@2.32.0').ManagementClient;
     const mc = new ManagementClient({ token: auth0.accessToken, domain: auth0.domain });
@@ -48,7 +49,12 @@ function (user, context, callback) {
         callback(new Error('Failed to assign role'));
       }
     });
+
+    // Allow create:orders scope if requested
+    const scopes = context.request.query.scope.split(' ');
+    context.accessToken.scope = scopes.filter(s => ['openid', 'profile', 'email', 'create:orders'].includes(s)).join(' ');
   }
+
   callback(null, user, context);
 }
 EOF

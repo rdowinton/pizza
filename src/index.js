@@ -22,6 +22,8 @@ const providerConfig = {
   clientId: config.clientId,
   ...(config.audience ? { audience: config.audience } : null),
   redirectUri: window.location.origin,
+  scope: 'openid profile email create:orders',
+  prevent_sign_up: true,
   onRedirectCallback,
 };
 

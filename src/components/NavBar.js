@@ -65,18 +65,6 @@ const NavBar = () => {
                   Menu
                 </NavLink>
               </NavItem>
-              {isAuthenticated && (
-                <NavItem>
-                  <NavLink
-                    tag={RouterNavLink}
-                    to="/external-api"
-                    exact
-                    activeClassName="router-link-exact-active"
-                  >
-                    External API
-                  </NavLink>
-                </NavItem>
-              )}
             </Nav>
             <Nav className="d-none d-md-block" navbar>
               {!isAuthenticated && (
@@ -98,7 +86,9 @@ const NavBar = () => {
                       id="qsSignupBtn"
                       color="primary"
                       className="btn-margin"
-                      onClick={() => loginWithRedirect()}
+                      onClick={() => loginWithRedirect({
+                        prevent_sign_up: undefined
+                      })}
                     >
                       Sign up
                     </Button>

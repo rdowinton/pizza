@@ -1,19 +1,17 @@
 {
-  "name": "auth0-react-sample",
+  "name": "pizza42",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "npm-run-all --parallel spa api-server",
+    "start": "npm run spa",
     "build": "react-scripts build",
     "test": "react-scripts test --env=jest-environment-jsdom-sixteen",
     "eject": "react-scripts eject",
     "spa": "react-scripts start",
     "server": "node server.js",
     "server:dev": "nodemon server.js",
-    "api-server": "node api-server.js",
-    "api-server:dev": "nodemon api-server.js",
-    "dev": "npm-run-all --parallel spa api-server:dev",
-    "prod": "npm-run-all --parallel server api-server"
+    "dev": "npm run spa",
+    "prod": "npm run server"
   },
   "dependencies": {
     "@auth0/auth0-react": "^1.2.0",
