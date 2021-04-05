@@ -17,9 +17,19 @@ exports.handler = async (event) => {
     throw new Error(`postMethod only accepts POST method, you tried: ${event.httpMethod} method.`);
   }
 
+  const authorizer = event.requestContext.authorizer || { scope: '' };
+  const scopes = authorizer.scope.split(' ');
+  if(!scopes.includes('create:orders')) {
+    return {
+      statusCode: 401,
+      headers: commonHeaders,
+      body: JSON.stringify({ error: 'Insufficient scope' }),
+    }
+  }
+
   const { AUTH0_DOMAIN: domain, CLIENT_ID: clientId, CLIENT_SECRET: clientSecret } = process.env;
 
-  const userId = event.requestContext.authorizer && event.requestContext.authorizer.principalId;
+  const userId = authorizer.principalId;
   if(typeof userId !== 'string') {
     return {
       statusCode: 400,

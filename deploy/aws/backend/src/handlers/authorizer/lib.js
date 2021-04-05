@@ -55,9 +55,6 @@ module.exports.authenticate = (params) => {
       return jwt.verify(token, signingKey, jwtOptions);
     })
     .then((decoded)=> {
-      if(!decoded.scope.includes('create:orders')) {
-        throw new Error('Insufficient scope');
-      }
       return {
         principalId: decoded.sub,
         policyDocument: getPolicyDocument('Allow', params.methodArn),
